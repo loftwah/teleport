@@ -18,6 +18,7 @@ package protocol
 
 import (
 	"encoding/binary"
+	"encoding/hex"
 	"fmt"
 	"io"
 
@@ -62,7 +63,7 @@ func ReadPacket(conn io.Reader) (*Packet, error) {
 		},
 	}
 
-	fmt.Printf("== Packet header: %#v\n", pkt)
+	// fmt.Printf("== Packet header: %#v\n", pkt)
 
 	// Read packet data. Packet length includes header.
 	pkt.Data = make([]byte, pkt.Length-packetHeaderSize)
@@ -70,6 +71,8 @@ func ReadPacket(conn io.Reader) (*Packet, error) {
 	if err != nil {
 		return nil, trace.ConvertSystemError(err)
 	}
+
+	fmt.Println(hex.Dump(append(header[:], pkt.Data...)))
 
 	return &pkt, nil
 }
