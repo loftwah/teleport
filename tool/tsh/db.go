@@ -572,6 +572,9 @@ func getConnectCommand(cf *CLIConf, tc *client.TeleportClient, profile *client.P
 
 	case defaults.ProtocolMongoDB:
 		return getMongoCommand(tc, profile, db, host, port, options), nil
+
+	case defaults.ProtocolRedis:
+		return getRedisCommand(tc, profile, db, options), nil
 	}
 
 	return nil, trace.BadParameter("unsupported database protocol: %v", db)
@@ -592,6 +595,19 @@ func getCockroachCommand(tc *client.TeleportClient, profile *client.ProfileStatu
 	}
 	return exec.Command(cockroachBin, "sql", "--url",
 		postgres.GetConnString(dbprofile.New(tc, *db, *profile, host, port)))
+}
+
+func getRedisCommand(tc *client.TeleportClient, profile *client.ProfileStatus, db *tlsca.RouteToDatabase, options connectionCommandOpts) *exec.Cmd {
+	args := []string{
+		"--tls",
+		"-h", options.localProxyHost,
+		"-p", strconv.Itoa(options.localProxyPort),
+		"--cacert", options.caPath,
+		"--key", profile.KeyPath(),
+		"--cert", profile.DatabaseCertPathForCluster(tc.SiteName, db.ServiceName),
+	}
+
+	return exec.Command(redisBin, args...)
 }
 
 func getMySQLCommand(tc *client.TeleportClient, profile *client.ProfileStatus, db *tlsca.RouteToDatabase, options connectionCommandOpts) *exec.Cmd {
@@ -686,4 +702,6 @@ const (
 	mysqlBin = "mysql"
 	// mongoBin is the Mongo client binary name.
 	mongoBin = "mongo"
+
+	redisBin = "redis-cli"
 )
