@@ -3,6 +3,7 @@ package protocol
 import (
 	"bytes"
 	"encoding/binary"
+	"encoding/hex"
 	"fmt"
 	"net"
 	"unicode/utf16"
@@ -63,15 +64,18 @@ func WriteLogin7Response(conn net.Conn) error {
 		0x1,                // status - mark as last
 		0, 0,               // length
 		0, 0,
-		1, // packet ID
+		0, // packet ID
 		0,
 	}
 
+	// Update packet length.
 	binary.BigEndian.PutUint16(header[2:], uint16(len(data)+8))
 
 	pkt := append(header, data...)
 
-	fmt.Printf("Writing login7 response: %#v\n", pkt)
+	fmt.Println("=== SENT LOGIN7 PACKET ===")
+	fmt.Println(hex.Dump(pkt))
+	fmt.Println("=======================")
 
 	// Write packet to connection.
 	_, err = conn.Write(pkt)
@@ -168,7 +172,7 @@ func (t *DoneToken) Marshal() ([]byte, error) {
 
 	bytes := b.Bytes()
 
-	fmt.Printf("--> Marshaled DOne token: %#v\n", bytes)
+	fmt.Printf("--> Marshaled Done token: %#v\n", bytes)
 
 	return bytes, nil
 }

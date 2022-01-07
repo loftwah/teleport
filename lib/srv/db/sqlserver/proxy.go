@@ -45,7 +45,7 @@ type Proxy struct {
 // it and proxies it to an appropriate database service.
 func (p *Proxy) HandleConnection(ctx context.Context, proxyCtx *common.ProxyContext, tlsConn *tls.Conn) error {
 	fmt.Println("=== [PROXY] === SQL SERVER")
-	err := p.handlePrelogin(ctx, tlsConn)
+	tlsConn, err := p.handlePrelogin(ctx, tlsConn)
 	if err != nil {
 		return trace.Wrap(err)
 	}
@@ -61,30 +61,42 @@ func (p *Proxy) HandleConnection(ctx context.Context, proxyCtx *common.ProxyCont
 	return nil
 }
 
-func (p *Proxy) handlePrelogin(ctx context.Context, tlsConn *tls.Conn) error {
-	preloginPkt, err := protocol.ReadPreloginPacket(tlsConn)
+func (p *Proxy) handlePrelogin(ctx context.Context, tlsConn *tls.Conn) (*tls.Conn, error) {
+	_, err := protocol.ReadPreloginPacket(tlsConn)
 	if err != nil {
-		return trace.Wrap(err)
+		return nil, trace.Wrap(err)
 	}
 
-	p.Log.Debugf("Got PRELOGIN packet: %v", preloginPkt)
+	p.Log.Debugf("Got PRELOGIN packet.")
 
 	err = protocol.WritePreloginResponse(tlsConn)
 	if err != nil {
-		return trace.Wrap(err)
+		return nil, trace.Wrap(err)
 	}
 
-	login7Pkt, err := protocol.ReadLogin7Packet(tlsConn)
+	// SQL Server clients don't support client certificates.
+	tlsConf := p.TLSConfig.Clone()
+	tlsConf.ClientAuth = tls.NoClientCert
+	tlsConf.GetConfigForClient = nil
+
+	tlsConn, err = protocol.DoTLSHandshake(tlsConn, tlsConf)
 	if err != nil {
-		return trace.Wrap(err)
+		return nil, trace.Wrap(err)
 	}
 
-	p.Log.Debugf("Got LOGIN7 packet: %v", login7Pkt)
+	p.Log.Debugf("Performed TLS handshake.")
+
+	_, err = protocol.ReadLogin7Packet(tlsConn)
+	if err != nil {
+		return nil, trace.Wrap(err)
+	}
+
+	p.Log.Debugf("Got LOGIN7 packet.")
 
 	err = protocol.WriteLogin7Response(tlsConn)
 	if err != nil {
-		return trace.Wrap(err)
+		return nil, trace.Wrap(err)
 	}
 
-	return nil
+	return tlsConn, nil
 }

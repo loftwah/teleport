@@ -32,6 +32,7 @@ type PacketHeader struct {
 	SPID     uint16
 	PacketID uint8
 	Window   uint8
+	Raw      []byte
 }
 
 type Packet struct {
@@ -42,37 +43,45 @@ type Packet struct {
 	Data []byte
 }
 
-func ReadPacket(conn io.Reader) (*Packet, error) {
-	fmt.Println("=== Reading packet header ===")
-
-	// Read 8-byte packet header.
+func readPacketHeader(conn io.Reader) (*PacketHeader, error) {
+	// Packet header is 8 bytes.
 	var header [packetHeaderSize]byte
 	if _, err := io.ReadFull(conn, header[:]); err != nil {
 		return nil, trace.ConvertSystemError(err)
 	}
+	return &PacketHeader{
+		Type:     header[0],
+		Status:   header[1],
+		Length:   binary.BigEndian.Uint16(header[2:4]),
+		SPID:     binary.BigEndian.Uint16(header[4:6]),
+		PacketID: header[6],
+		Window:   header[7],
+		Raw:      header[:],
+	}, nil
+}
 
-	// Build out packet header.
-	pkt := Packet{
-		PacketHeader: PacketHeader{
-			Type:     header[0],
-			Status:   header[1],
-			Length:   binary.BigEndian.Uint16(header[2:4]),
-			SPID:     binary.BigEndian.Uint16(header[4:6]),
-			PacketID: header[6],
-			Window:   header[7],
-		},
+func ReadPacket(conn io.Reader) (*Packet, error) {
+	// Read packet header.
+	header, err := readPacketHeader(conn)
+	if err != nil {
+		return nil, trace.Wrap(err)
 	}
 
-	// fmt.Printf("== Packet header: %#v\n", pkt)
+	// Build packet.
+	pkt := Packet{
+		PacketHeader: *header,
+	}
 
 	// Read packet data. Packet length includes header.
 	pkt.Data = make([]byte, pkt.Length-packetHeaderSize)
-	_, err := io.ReadFull(conn, pkt.Data)
+	_, err = io.ReadFull(conn, pkt.Data)
 	if err != nil {
 		return nil, trace.ConvertSystemError(err)
 	}
 
-	fmt.Println(hex.Dump(append(header[:], pkt.Data...)))
+	fmt.Println("=== RECEIVED PACKET ===")
+	fmt.Println(hex.Dump(append(header.Raw, pkt.Data...)))
+	fmt.Println("=======================")
 
 	return &pkt, nil
 }

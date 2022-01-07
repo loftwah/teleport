@@ -3,6 +3,7 @@ package protocol
 import (
 	"bytes"
 	"encoding/binary"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"net"
@@ -32,8 +33,8 @@ func WritePreloginResponse(conn net.Conn) error {
 	var err error
 
 	w := bytes.NewBuffer([]byte{
-		PacketTypeResponse, // type
-		0x1,                // status - mark as last
+		PacketTypePreLogin, // type
+		0x01,               // status - mark as last
 		0, 0,               // length
 		0, 0,
 		0,
@@ -42,7 +43,7 @@ func WritePreloginResponse(conn net.Conn) error {
 
 	fields := map[uint8][]byte{
 		preloginVERSION:    {0, 0, 0, 0, 0, 0},
-		preloginENCRYPTION: {encryptNotSup},
+		preloginENCRYPTION: {EncryptionRequired},          // {encryptNotSup},
 		preloginINSTOPT:    append([]byte("teleport"), 0), // 0-terminated instance name
 		preloginTHREADID:   {0, 0, 0, 0},
 		preloginMARS:       {0}, // MARS disabled
@@ -95,7 +96,9 @@ func WritePreloginResponse(conn net.Conn) error {
 	pktBytes := w.Bytes()
 	binary.BigEndian.PutUint16(pktBytes[2:], uint16(len(pktBytes)))
 
-	fmt.Printf("Writing prelogin response: %v\n", pktBytes)
+	fmt.Println("=== SENT PRELOGIN PACKET ===")
+	fmt.Println(hex.Dump(pktBytes))
+	fmt.Println("=======================")
 
 	// Write packet to connection.
 	_, err = conn.Write(pktBytes)

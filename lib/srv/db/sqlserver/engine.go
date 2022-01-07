@@ -26,7 +26,6 @@ import (
 	"strconv"
 
 	"github.com/gravitational/teleport/lib/srv/db/common"
-	"github.com/gravitational/teleport/lib/utils"
 	"github.com/gravitational/trace"
 
 	mssql "github.com/denisenkom/go-mssqldb"
@@ -67,11 +66,12 @@ func (e *Engine) HandleConnection(ctx context.Context, sessionCtx *common.Sessio
 	}
 
 	connector := mssql.NewConnectorConfig(msdsn.Config{
-		Host:       host,
-		Port:       portI,
-		User:       os.Getenv("SQL_SERVER_USER"),
-		Password:   os.Getenv("SQL_SERVER_PASS"),
-		Encryption: msdsn.EncryptionOff,
+		Host:     host,
+		Port:     portI,
+		User:     os.Getenv("SQL_SERVER_USER"),
+		Password: os.Getenv("SQL_SERVER_PASS"),
+		//Encryption: msdsn.EncryptionOff,
+		Encryption: msdsn.EncryptionRequired,
 		TLSConfig:  &tls.Config{InsecureSkipVerify: true},
 	}, nil)
 
@@ -118,7 +118,7 @@ func (e *Engine) receiveFromClient(clientConn, serverConn io.ReadWriteCloser, cl
 		close(clientErrCh)
 	}()
 	_, err := io.Copy(serverConn, clientConn)
-	if err != nil && !utils.IsOKNetworkError(err) {
+	if err != nil { // && !utils.IsOKNetworkError(err) {
 		log.WithError(err).Error("Failed to copy from client to server.")
 		clientErrCh <- err
 	}
@@ -133,7 +133,7 @@ func (e *Engine) receiveFromServer(serverConn, clientConn io.ReadWriteCloser, se
 		close(serverErrCh)
 	}()
 	_, err := io.Copy(clientConn, serverConn)
-	if err != nil && !utils.IsOKNetworkError(err) {
+	if err != nil { // && !utils.IsOKNetworkError(err) {
 		log.WithError(err).Error("Failed to copy from server to client.")
 		serverErrCh <- err
 	}

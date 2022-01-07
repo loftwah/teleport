@@ -13,10 +13,14 @@ const (
 )
 
 const (
-	encryptOff    = 0 // Encryption is available but off.
-	encryptOn     = 1 // Encryption is available and on.
-	encryptNotSup = 2 // Encryption is not available.
-	encryptReq    = 3 // Encryption is required.
+	// EncryptionOff is a PRELOGIN option indicating that TLS is available but off.
+	EncryptionOff = 0
+	// EncryptionOn is a PRELOGIN option indicating that TLS is available and on.
+	EncryptionOn = 1
+	// EncryptionNotSupported is a PRELOGIN option indicating that TLS is not available.
+	EncryptionNotSupported = 2
+	// EncryptionRequired is a PRELOGIN option indicating that TLS is required.
+	EncryptionRequired = 3
 )
 
 const (
