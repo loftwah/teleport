@@ -706,8 +706,8 @@ windows_desktop_service:
   # instead.
   public_addr: "desktop-access.example.com:3028"
   ldap:
-    # Address of the Domain Controller for LDAP connections. Usually, this
-    # address will use port 389, like: domain-controller.example.com:389.
+    # Address of the Domain Controller for ldaps:// connections. Usually, this
+    # address will use port 636, like: domain-controller.example.com:636.
     addr:     '$LDAP_SERVER_ADDRESS'
     # Active Directory domain name you are connecting to.
     domain:   '$LDAP_DOMAIN_NAME'
@@ -718,9 +718,6 @@ windows_desktop_service:
     # likely "EXAMPLE". When connecting as the "Administrator" user, you should
     # use the format: "EXAMPLE\Administrator".
     username: '$LDAP_USERNAME'
-    # Plain text file containing the LDAP password for authentication.
-    # This is usually the same password you use to login to the Domain Controller.
-    password_file: /var/lib/ldap-pass
   # (optional) settings for enabling automatic desktop discovery via LDAP
   discovery:
     # The wildcard '*' character tells Teleport to discover all the hosts in

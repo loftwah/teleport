@@ -31,20 +31,14 @@ This guide requires you to have:
 Teleport requires a service account to connect to your Active Directory domain. We recommend creating a dedicated service account with restrictive permissions
 for maximal security.
 
-To create the service account, open a PowerShell prompt and copy-paste in the commands below. Note that a password for this service account
-will be randomly generated for you, and saved as plaintext in a file (`$OutputFile`) so that you can provide it to the Teleport configuration yaml later.
-
-<Admonition type="warning" title="Warning">
-  `$OutputFile` will contain the plaintext password of the service account you
-  are about to create. It is best practice to delete this file after you have
-  transfered it to your Teleport host machine and confirmed that LDAP
-  authentication is working (Steps 5 and 6).
-</Admonition>
+To create the service account, open a PowerShell prompt and copy-paste in the
+commands below. A password for this service account will be randomly generated
+and written to the console. Teleport will not need this password, as it uses
+x509 certificates for LDAP authentication.
 
 ```powershell
 $Name="Teleport Service Account"
 $SamAccountName="svc-teleport"
-$OutputFile="teleport-svc-pass.txt"
 
 # Generate a random password that meets the "Password must meet complexity requirements" security policy setting.
 Add-Type -AssemblyName 'System.Web'
@@ -53,8 +47,8 @@ do {
 } until ($Password -match '\d')
 $SecureStringPassword=ConvertTo-SecureString $Password -AsPlainText -Force
 
-# Save the plaintext password to a file for later use in your teleport.yaml.
-$Password | Out-File $OutputFile
+Write-Host "Generated password for $SamAccountName: $Password"
+Write_Host "Please note this for your records."
 
 New-ADUser `
   -Name $Name `
@@ -309,19 +303,6 @@ windows_desktop_service:
     # (Get-ADDomain).NetBIOSName
     #
     username: "$LDAP_USERNAME"
-    # Plain text file containing the LDAP password for authentication. This is the password that was
-    # randomly generated and saved to $OutputFile in Step 1, which you will need to transfer
-    # to this machine.
-    #
-    # Note that if you transfer the file itself, it will likely be UTF-16LE encoded, and you will need to
-    # convert it to UTF-8 Unix format by using a tool such as dos2unix
-    # (simply `dos2unix $OutputFile` with no option flags will do the trick).
-    # Alternately, you can just create a new file on this machine and copy the characters manually.
-    #
-    # Remember that it is good practice to delete this file from the Windows host it was created on once
-    # it's been successfully saved on this machine and you have verified that LDAP authentication is working properly
-    # (after you've successfully connected to a windows desktop in Step 6 below).
-    password_file: /var/lib/teleport-svc-pass.txt
     # You can skip LDAPS certificate verification by setting
     # this to true. It is recommended that this be set to false
     # and the certificate added your system's trusted repository,
@@ -383,11 +364,6 @@ on the right, selecting one of the available logins:
 
 A new tab will open and, after a few seconds, you should be logged in to your
 target Windows host.
-
-<Admonition type="warning" title="Warning">
-  Remember to delete `$OutputFile` from Step 1 on your Windows host after you've
-  successfully completed this step.
-</Admonition>
 
 ## Troubleshooting
 
