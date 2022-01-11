@@ -246,10 +246,32 @@ func (p *transport) start() {
 			p.log.Debugf("Forwarding connection to %q", p.kubeDialAddr.Addr)
 			servers = append(servers, p.kubeDialAddr.Addr)
 		}
+	// Connect to Windows Desktop service.
+	case LocalWindowsDesktop:
+		if p.component == teleport.ComponentReverseTunnelServer {
+			p.reply(req, false, []byte("connection rejected: no remote windows desktop service"))
+			return
+		}
+		if p.server != nil {
+			if p.sconn == nil {
+				p.log.Debug("Connection rejected: server connection missing")
+				p.reply(req, false, []byte("connection rejected: server connection missing"))
+				return
+			}
+			if err := req.Reply(true, []byte("Connected.")); err != nil {
+				p.log.Errorf("Failed responding OK to %q request: %v", req.Type, err)
+				return
+			}
+
+			p.log.Debugf("Handing off connection to a local %q service.", dreq.ConnType)
+			p.server.HandleConnection(sshutils.NewChConn(p.sconn, p.channel))
+			return
+		}
+
 	// LocalNode requests are for the single server running in the agent pool.
 	case LocalNode:
 		// Transport is allocated with both teleport.ComponentReverseTunnelAgent
-		// and teleport.ComponentReverseTunneServer. However, dialing to this address
+		// and teleport.ComponentReverseTunnelServer. However, dialing to this address
 		// only makes sense when running within a teleport.ComponentReverseTunnelAgent.
 		if p.component == teleport.ComponentReverseTunnelServer {
 			p.reply(req, false, []byte("connection rejected: no local node"))
@@ -375,7 +397,7 @@ func (p *transport) getConn(servers []string, r *sshutils.DialReq) (net.Conn, bo
 		p.log.Debugf("Attempting to dial directly %v.", servers)
 		conn, err = directDial(servers)
 		if err != nil {
-			return nil, false, trace.ConnectionProblem(err, "failed dialing through tunnel (%v) or directly (%v)", err, errTun)
+			return nil, false, trace.ConnectionProblem(err, "failed dialing through tunnel (%v) or directly (%v)", errTun, err)
 		}
 
 		p.log.Debugf("Returning direct dialed connection to %v.", servers)
@@ -393,6 +415,7 @@ func (p *transport) tunnelDial(r *sshutils.DialReq) (net.Conn, error) {
 	// exists, then exit right away this code may be running outside of a
 	// remote site.
 	if p.reverseTunnelServer == nil {
+		p.log.Warn("can't perform tunnel dial, reverseTunnelServer is nil")
 		return nil, trace.NotFound("not found")
 	}
 	cluster, err := p.reverseTunnelServer.GetSite(p.localClusterName)
